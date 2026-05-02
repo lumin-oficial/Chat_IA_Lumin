@@ -1,30 +1,27 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
 // --- CONFIGURACIÓN DE LUMIN ---
 // Este es tu token permanente. Asegúrate de que no tenga espacios al final.
-const TOKEN = process.env.WHATSAPP_TOKEN || "EAA3Gj9BhHTQBRROm00XhsmyzpQf6F8fKm5k5fdff96SxYLFN04KFI1b3Ekyh8fMNm3BlGFgv7rukyNQakmhDHifbi0Y1nBu0ZBZB5T0ZCZA0gtTPoOlMhTztWEXfWPsYcD64zbguJKIKzbcDC3NACyIBtov3Em6ZBjh012xx1f9Hieu8A1xoZCoouuhNkKCXJqlu19ZCKdR2TOxflLwsz0X5pZA5Q1Xuq00hhwr2KkBxJOKLMS62HKFZC4yyPQ2Glcd36KVoDBgLy8hyxeezUaEI1";
-const ID_TELEFONO = process.env.PHONE_NUMBER_ID || "1134073349784201"; 
+const TOKEN = process.env.WHATSAPP_TOKEN;
+const ID_TELEFONO = process.env.PHONE_NUMBER_ID; 
 const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN || "LUMIN_2026"; 
 
 // --- CONFIGURACIÓN DE GEMINI AI ---
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "TU_API_KEY_AQUÍ");
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ 
+    model: "models/gemini-1.5-flash",
+    systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto."
+});
 
 // --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
 async function obtenerRespuestaIA(mensajeUsuario) {
     try {
-        const prompt = `Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade. 
-        LUMIN se especializa en control de iluminación y bombas de agua. 
-        El equipo es: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth.
-        Responde de forma amable, concisa y técnica a esto: ${mensajeUsuario}`;
-
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent(mensajeUsuario);
         const response = await result.response;
         return response.text();
     } catch (error) {
@@ -71,6 +68,9 @@ app.get('/webhook', (req, res) => {
 app.post('/webhook', async (req, res) => {
     const body = req.body;
     
+    // Enviamos el 200 inmediatamente para evitar reintentos de Meta
+    res.sendStatus(200);
+
     // IMPORTANTE: Meta envía notificaciones de "leído" y "entregado" que no tienen mensajes.
     // Añadimos esta validación para que el bot no se trabe.
     if (body.object) {
@@ -93,9 +93,6 @@ app.post('/webhook', async (req, res) => {
                 await enviarMensajeWhatsApp(numeroCliente, textoRespuesta);
             }
         }
-        res.sendStatus(200); // Siempre responder 200 a Meta
-    } else {
-        res.sendStatus(404);
     }
 });
 
