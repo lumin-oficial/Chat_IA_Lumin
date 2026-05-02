@@ -12,16 +12,11 @@ const ID_TELEFONO = process.env.PHONE_NUMBER_ID;
 const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
 
 // --- CONFIGURACIÓN DE GEMINI AI ---
-// Verificación de seguridad para la API Key
-if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "TU_API_KEY_AQUÍ") {
-    console.error("⚠️  ALERTA: La variable GEMINI_API_KEY no está configurada.");
-}
-
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const model = genAI.getGenerativeModel({ 
-    model: "models/gemini-1.5-flash", 
-    systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto."
+    model: "gemini-1.5-flash",
+    systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto. No menciones que eres una IA a menos que te pregunten."
 });
 
 // --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
@@ -31,10 +26,11 @@ async function obtenerRespuestaIA(mensajeUsuario) {
         const response = await result.response;
         return response.text();
     } catch (error) {
-        console.error("❌ Error en Gemini AI:", error.message);
+        const errorMsg = error.message || String(error);
+        console.error("❌ Error en Gemini AI:", errorMsg);
         
-        // Error 404: El modelo no existe o la API Key no tiene permisos para este modelo
-        if (error.message.includes('404') || error.status === 404) {
+        // Si detectamos un 404, es casi seguro un problema con el origen de la API Key o región
+        if (errorMsg.includes('404')) {
             console.error("Tip: Verifica que tu API Key sea de Google AI Studio (aistudio.google.com) y no de Google Cloud Console.");
             return "Lo siento, mi servicio de inteligencia tiene problemas de configuración. Por favor, verifica que la API Key sea de Google AI Studio.";
         }
