@@ -14,7 +14,7 @@ const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN || "LUMIN_2026";
 // --- CONFIGURACIÓN DE GEMINI AI ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ 
-    model: "models/gemini-1.5-flash",
+    model: "gemini-1.5-flash",
     systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto."
 });
 
@@ -74,11 +74,7 @@ app.post('/webhook', async (req, res) => {
     // IMPORTANTE: Meta envía notificaciones de "leído" y "entregado" que no tienen mensajes.
     // Añadimos esta validación para que el bot no se trabe.
     if (body.object) {
-        if (body.entry && 
-            body.entry[0].changes && 
-            body.entry[0].changes[0].value.messages && 
-            body.entry[0].changes[0].value.messages[0]) {
-            
+        if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
             const message = body.entry[0].changes[0].value.messages[0];
             const numeroCliente = message.from;
 
