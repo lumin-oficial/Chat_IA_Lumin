@@ -9,7 +9,7 @@ app.use(express.json());
 // Este es tu token permanente. Asegúrate de que no tenga espacios al final.
 const TOKEN = process.env.WHATSAPP_TOKEN;
 const ID_TELEFONO = process.env.PHONE_NUMBER_ID; 
-const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN || "LUMIN_2026"; 
+const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
 
 // --- CONFIGURACIÓN DE GEMINI AI ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
