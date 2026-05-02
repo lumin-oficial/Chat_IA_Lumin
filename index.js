@@ -19,9 +19,8 @@ if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "TU_API_KEY_AQ
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Cambiamos a 'gemini-1.5-flash-latest' para forzar la resolución del modelo en el endpoint
 const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash-latest", 
+    model: "models/gemini-1.5-flash", 
     systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto."
 });
 
@@ -32,7 +31,13 @@ async function obtenerRespuestaIA(mensajeUsuario) {
         const response = await result.response;
         return response.text();
     } catch (error) {
-        console.error("❌ Error en Gemini AI:", error);
+        console.error("❌ Error en Gemini AI:", error.message);
+        
+        // Error 404: El modelo no existe o la API Key no tiene permisos para este modelo
+        if (error.message.includes('404') || error.status === 404) {
+            console.error("Tip: Verifica que tu API Key sea de Google AI Studio (aistudio.google.com) y no de Google Cloud Console.");
+            return "Lo siento, mi servicio de inteligencia tiene problemas de configuración. Por favor, verifica que la API Key sea de Google AI Studio.";
+        }
         return "Lo siento, estoy teniendo problemas para procesar tu solicitud. Por favor, intenta de nuevo más tarde.";
     }
 }
