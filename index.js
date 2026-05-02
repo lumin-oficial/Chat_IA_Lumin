@@ -11,6 +11,12 @@ const TOKEN = process.env.WHATSAPP_TOKEN;
 const ID_TELEFONO = process.env.PHONE_NUMBER_ID; 
 const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
 
+// --- DIAGNÓSTICO DE INICIO ---
+console.log("=== LUMIN Bot Startup ===");
+console.log("WHATSAPP_TOKEN:", TOKEN ? "✅ Cargado" : "❌ NO ENCONTRADO");
+console.log("PHONE_NUMBER_ID:", ID_TELEFONO ? "✅ Cargado" : "❌ NO ENCONTRADO");
+console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? `✅ Cargado (Inicia con: ${process.env.GEMINI_API_KEY.substring(0, 4)}...)` : "❌ NO ENCONTRADO");
+
 // --- CONFIGURACIÓN DE GEMINI AI ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -27,7 +33,8 @@ async function obtenerRespuestaIA(mensajeUsuario) {
         return response.text();
     } catch (error) {
         const errorMsg = error.message || String(error);
-        console.error("❌ Error en Gemini AI:", errorMsg);
+        // Logueamos el error completo para ver detalles técnicos de la respuesta
+        console.error("❌ Error en Gemini AI:", error);
         
         // Si detectamos un 404, es casi seguro un problema con el origen de la API Key o región
         if (errorMsg.includes('404')) {
