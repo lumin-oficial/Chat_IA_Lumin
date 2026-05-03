@@ -12,12 +12,8 @@ const ID_TELEFONO = process.env.PHONE_NUMBER_ID;
 const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
 
 // --- CONFIGURACIÓN DE GEMINI AI ---
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim(), { apiVersion: "v1beta" });
-
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-    systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto. No menciones que eres una IA a menos que te pregunten."
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim());
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 // --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
 async function obtenerRespuestaIA(mensajeUsuario) {
