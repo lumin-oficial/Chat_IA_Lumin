@@ -20,15 +20,22 @@ console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? `✅ Cargado (Inicia
 // --- CONFIGURACIÓN DE GEMINI AI ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim());
 
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-    systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto. No menciones que eres una IA a menos que te pregunten."
-}, { apiVersion: "v1" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: "v1" });
 
 // --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
 async function obtenerRespuestaIA(mensajeUsuario) {
     try {
-        const result = await model.generateContent(mensajeUsuario);
+        // Combinamos las instrucciones de sistema con el mensaje del usuario para máxima compatibilidad
+        const promptFinal = `Instrucciones de identidad: Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. 
+        LUMIN se especializa en control inteligente de iluminación y bombas de agua. 
+        El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. 
+        Responde siempre de forma amable, técnica y concisa. 
+        Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto. 
+        No menciones que eres una IA a menos que te pregunten.
+
+        Mensaje del usuario: ${mensajeUsuario}`;
+
+        const result = await model.generateContent(promptFinal);
         const response = await result.response;
         return response.text();
     } catch (error) {
