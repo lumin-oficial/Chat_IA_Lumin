@@ -11,31 +11,18 @@ const TOKEN = process.env.WHATSAPP_TOKEN;
 const ID_TELEFONO = process.env.PHONE_NUMBER_ID; 
 const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
 
-// --- DIAGNÓSTICO DE INICIO ---
-console.log("=== LUMIN Bot Startup ===");
-console.log("WHATSAPP_TOKEN:", TOKEN ? "✅ Cargado" : "❌ NO ENCONTRADO");
-console.log("PHONE_NUMBER_ID:", ID_TELEFONO ? "✅ Cargado" : "❌ NO ENCONTRADO");
-console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? `✅ Cargado (Inicia con: ${process.env.GEMINI_API_KEY.substring(0, 4)}...)` : "❌ NO ENCONTRADO");
-
 // --- CONFIGURACIÓN DE GEMINI AI ---
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim());
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim(), { apiVersion: "v1beta" });
 
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: "v1" });
+const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto. No menciones que eres una IA a menos que te pregunten."
+});
 
 // --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
 async function obtenerRespuestaIA(mensajeUsuario) {
     try {
-        // Combinamos las instrucciones de sistema con el mensaje del usuario para máxima compatibilidad
-        const promptFinal = `Instrucciones de identidad: Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. 
-        LUMIN se especializa en control inteligente de iluminación y bombas de agua. 
-        El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. 
-        Responde siempre de forma amable, técnica y concisa. 
-        Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto. 
-        No menciones que eres una IA a menos que te pregunten.
-
-        Mensaje del usuario: ${mensajeUsuario}`;
-
-        const result = await model.generateContent(promptFinal);
+        const result = await model.generateContent(mensajeUsuario);
         const response = await result.response;
         return response.text();
     } catch (error) {
