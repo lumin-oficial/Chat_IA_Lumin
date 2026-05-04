@@ -12,35 +12,36 @@ const ID_TELEFONO = process.env.PHONE_NUMBER_ID;
 const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
 
 // --- CONFIGURACIÓN DE GEMINI AI ---
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim(), { apiVersion: "v1beta" });
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-    systemInstruction: "Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. LUMIN se especializa en control inteligente de iluminación y bombas de agua. El equipo está conformado por: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. Responde siempre de forma amable, técnica y concisa. Si no conoces una respuesta técnica específica sobre el hardware, invita al usuario a esperar la atención de un experto. No menciones que eres una IA a menos que te pregunten."
-});
+// Usamos la configuración estándar para evitar errores de versión 404/400
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim());
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
 async function obtenerRespuestaIA(mensajeUsuario) {
     try {
-        const result = await model.generateContent(mensajeUsuario);
-        const response = await result.response;
+        // Inyectamos la personalidad directamente en el mensaje (Prompt Injection).
+        // Esta es la forma más estable y moderna de asegurar que la IA no pierda su identidad
+        // sin causar errores de compatibilidad con los servidores de Google.
+        const instruccionesSistema = `Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. 
+        Te especializas en control inteligente de iluminación y bombas de agua. 
+        El equipo técnico es: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. 
+        Responde de forma amable, técnica y concisa. Si no sabes algo, pide esperar a un experto. 
+        No menciones que eres una IA.`;
+
+        const promptFinal = `${instruccionesSistema}\n\nUsuario pregunta: ${mensajeUsuario}`;
+
+        const result = await model.generateContent(promptFinal);
+        const response = result.response;
         return response.text();
     } catch (error) {
         const errorMsg = error.message || String(error);
         const statusCode = error.status || (error.response ? error.response.status : null);
 
-        // Logueamos el error completo para ver detalles técnicos de la respuesta
-        console.error("❌ Error en Gemini AI:", error);
-        
-        // Manejo específico para cuota superada (Too Many Requests)
-        if (statusCode === 429 || errorMsg.includes('429')) {
-            return "He superado el límite de mensajes permitidos por ahora en mi versión gratuita. Por favor, intenta de nuevo en un minuto.";
-        }
+        console.error("❌ Error en Gemini AI:", errorMsg);
 
-        // Si detectamos un 404, es casi seguro un problema con el origen de la API Key o región
-        if (statusCode === 404 || errorMsg.includes('404')) {
-            console.error("Tip: Verifica que tu API Key sea de Google AI Studio (aistudio.google.com) y no de Google Cloud Console.");
-            return "Lo siento, mi servicio de inteligencia tiene problemas de configuración. Por favor, verifica que la API Key sea de Google AI Studio.";
-        }
+        if (statusCode === 429) return "Límite de mensajes alcanzado. Intenta en un minuto.";
+        if (statusCode === 404) return "Error de configuración de IA (404). Verifica la API Key.";
+
         return "Lo siento, estoy teniendo problemas para procesar tu solicitud. Por favor, intenta de nuevo más tarde.";
     }
 }
