@@ -1,6 +1,6 @@
 const express = require('express');
 const axios = require('axios');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const OpenAI = require('openai');
 
 const app = express();
 app.use(express.json());
@@ -11,36 +11,35 @@ const TOKEN = process.env.WHATSAPP_TOKEN;
 const ID_TELEFONO = process.env.PHONE_NUMBER_ID; 
 const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
 
-// --- CONFIGURACIÓN DE GEMINI AI ---
-// Usamos la configuración estándar para evitar errores de versión 404/400
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY?.trim());
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// --- CONFIGURACIÓN DE GROQ (VIA OPENAI SDK) ---
+const openai = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: "https://api.groq.com/openai/v1"
+});
 
 // --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
 async function obtenerRespuestaIA(mensajeUsuario) {
     try {
-        // Inyectamos la personalidad directamente en el mensaje (Prompt Injection).
-        // Esta es la forma más estable y moderna de asegurar que la IA no pierda su identidad
-        // sin causar errores de compatibilidad con los servidores de Google.
         const instruccionesSistema = `Eres el asistente virtual de LUMIN, un proyecto de ITCA-Fepade de El Salvador. 
         Te especializas en control inteligente de iluminación y bombas de agua. 
         El equipo técnico es: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth. 
         Responde de forma amable, técnica y concisa. Si no sabes algo, pide esperar a un experto. 
         No menciones que eres una IA.`;
 
-        const promptFinal = `${instruccionesSistema}\n\nUsuario pregunta: ${mensajeUsuario}`;
+        const response = await openai.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                { role: "system", content: instruccionesSistema },
+                { role: "user", content: mensajeUsuario }
+            ],
+            max_tokens: 500
+        });
 
-        const result = await model.generateContent(promptFinal);
-        const response = result.response;
-        return response.text();
+        return response.choices[0].message.content;
     } catch (error) {
-        const errorMsg = error.message || String(error);
-        const statusCode = error.status || (error.response ? error.response.status : null);
-
-        console.error("❌ Error en Gemini AI:", errorMsg);
-
-        if (statusCode === 429) return "Límite de mensajes alcanzado. Intenta en un minuto.";
-        if (statusCode === 404) return "Error de configuración de IA (404). Verifica la API Key.";
+        console.error("❌ Error en Groq AI:", error.message);
+        
+        if (error.status === 429) return "Límite de mensajes alcanzado en Groq. Reintenta en breve.";
 
         return "Lo siento, estoy teniendo problemas para procesar tu solicitud. Por favor, intenta de nuevo más tarde.";
     }
