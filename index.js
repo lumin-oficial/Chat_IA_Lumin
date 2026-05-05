@@ -3,6 +3,32 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const Groq = require("groq-sdk");
 const express = require('express');
+const mongoose = require('mongoose');
+const dns = require('dns');
+
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
+// Conectar a MongoDB
+const mongoUri = process.env.MONGODB_URI;
+if (!mongoUri) {
+    console.error("Falta la URI de MongoDB. Agrégala al archivo .env como MONGODB_URI");
+    process.exit(1);
+}
+mongoose.connect(mongoUri)
+    .then(() => console.log('Conectado a MongoDB'))
+    .catch(err => {
+        console.error('Error conectando a MongoDB:', err);
+        process.exit(1);
+    });
+
+// Definir esquema para conversaciones
+const conversationSchema = new mongoose.Schema({
+    from: String,
+    message: String,
+    response: String,
+    timestamp: { type: Date, default: Date.now }
+});
+const Conversation = mongoose.model('Conversation', conversationSchema);
 
 // Configuración de Express para Render
 const app = express();
@@ -148,6 +174,14 @@ client.on('message', async (msg) => {
             const text = chatCompletion.choices[0]?.message?.content || "";
             
             console.log("Respuesta de IA:", text);
+            
+            // Guardar conversación en MongoDB
+            const conversation = new Conversation({
+                from: msg.from,
+                message: msg.body,
+                response: text
+            });
+            await conversation.save();
             
             // Detener el estado de escritura y enviar
             await chat.clearState();

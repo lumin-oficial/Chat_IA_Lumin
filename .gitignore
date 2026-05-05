@@ -1,3 +1,11 @@
 node_modules/
 .wwebjs_auth/
+.wwebjs_cache/
 .env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+test_dns.js
+test_dns2.js
+test_mongo.js
