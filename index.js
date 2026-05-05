@@ -1,131 +1,165 @@
+require('dotenv').config();
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const Groq = require("groq-sdk");
 const express = require('express');
-const axios = require('axios');
-const OpenAI = require('openai');
 
+// Configuración de Express para Render
 const app = express();
-app.use(express.json());
-
-// --- CONFIGURACIÓN DE LUMIN ---
-// Este es tu token permanente. Asegúrate de que no tenga espacios al final.
-const TOKEN = process.env.WHATSAPP_TOKEN;
-const ID_TELEFONO = process.env.PHONE_NUMBER_ID; 
-const TOKEN_VERIFICACION = process.env.VERIFY_TOKEN; 
-
-// --- CONFIGURACIÓN DE GROQ (VIA OPENAI SDK) ---
-const openai = new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1"
+const port = process.env.PORT || 3000;
+app.get('/', (req, res) => res.send('Lummis Bot está vivo!'));
+app.listen(port, () => {
+    console.log(`Servidor de monitoreo escuchando en el puerto ${port}`);
 });
 
-// --- FUNCIÓN PARA OBTENER RESPUESTA DE LA IA ---
-async function obtenerRespuestaIA(mensajeUsuario) {
-    try {
-        const instruccionesSistema = `Eres el asistente virtual experto de LUMIN, un proyecto de automatización inteligente desarrollado en ITCA-Fepade, El Salvador.
-
-        INFORMACIÓN TÉCNICA Y DEL PROYECTO:
-        - Especialidad: Control inteligente de iluminación residencial/industrial y sistemas de bombeo de agua automatizados.
-        - Equipo Fundador: Walter Menjívar (CEO), Oscar, Antonio, Jordan y Everth.
-        - Página Web Oficial: https://lumin-oficial.github.io/Web/
-        - Configuración de Hardware: Los dispositivos LUMIN incluyen un código QR. Al escanearlo, el usuario es dirigido al portal web para configurar redes Wi-Fi y parámetros de control.
-        - Diagnóstico Básico: Si algo no funciona, sugiere revisar la conexión Wi-Fi, verificar el estado de los relés y asegurar que la fuente de alimentación sea estable.
-
-        REGLAS DE ATENCIÓN:
-        - Saluda cordialmente e invita a conocer más sobre LUMIN.
-        - Responde de forma técnica pero comprensible.
-        - Si un visitante de la feria hace una pregunta muy compleja, indícale que Walter Menjívar o algún miembro del equipo técnico puede atenderle personalmente en el stand.
-        - Mantén siempre la identidad de LUMIN. No menciones que eres una IA o un modelo de lenguaje.`;
-
-        const response = await openai.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-                { role: "system", content: instruccionesSistema },
-                { role: "user", content: mensajeUsuario }
-            ],
-            max_tokens: 500
-        });
-
-        return response.choices[0].message.content;
-    } catch (error) {
-        console.error("❌ Error en Groq AI:", error.message);
-        
-        if (error.status === 429) return "Límite de mensajes alcanzado en Groq. Reintenta en breve.";
-
-        return "Lo siento, estoy teniendo problemas para procesar tu solicitud. Por favor, intenta de nuevo más tarde.";
-    }
+// 1. Configuración de la IA (Groq)
+const apiKey = process.env.GROQ_API_KEY;
+if (!apiKey) {
+    console.error("Falta la API Key de Groq. Agrégala al archivo .env");
+    process.exit(1);
 }
+const groq = new Groq({ apiKey: apiKey });
 
-// --- FUNCIÓN DE ENVÍO DE MENSAJES ---
-async function enviarMensajeWhatsApp(numero, textoRespuesta) {
-    try {
-        await axios.post(`https://graph.facebook.com/v18.0/${ID_TELEFONO}/messages`, {
-            messaging_product: "whatsapp",
-            to: numero,
-            type: "text",
-            text: { body: textoRespuesta }
-        }, {
-            headers: { 
-                'Authorization': `Bearer ${TOKEN}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        console.log("✅ Respuesta enviada con éxito a:", numero);
-    } catch (error) {
-        // Mejoramos la visualización del error para saber exactamente qué falla
-        console.error("❌ Error de Meta:", error.response ? JSON.stringify(error.response.data) : error.message);
+// 1.1 Base de Conocimiento de LUMIN
+// Aquí pegaremos toda la información que me vas a pasar
+const CONOCIMIENTO_LUMIN = `
+NOMBRE DEL NEGOCIO: LUMIN
+CONCEPTO: Proyecto de domótica (automatización del hogar).
+ESPECIALIZACIÓN: Control inteligente de sistemas de iluminación y bombas de agua.
+UBICACIÓN: San Martín, San Salvador, El Salvador.
+INSTITUCIÓN: ITCA-FEPADE (Ingeniería Técnica en Electricidad, Grupo ELE 21B).
+
+EQUIPO:
+- CEO: Walter Obed Menjívar Franco.
+- Equipo Técnico y Logístico: Oscar Palacios, Antonio Nieto, Jordan Ponce y Everth Vasquez.
+
+MANUAL DE USO DE LA APP:
+1. Inicio y Registro: Interfaz en modo oscuro. Registro con correo y contraseña (seguridad Firebase Auth). Posee recuperación de contraseña por email.
+2. Vinculación: Pulsar "VINCULAR DISPOSITIVO AHORA" y escanear el código QR físico que está en la etiqueta del equipo Lumin.
+3. Panel de Control (Dashboard): Control de 8 canales independientes. Botón Verde es "ON", Gris es "OFF". Tiene feedback sensorial (vibración).
+4. Personalización: Mantén presionado un botón para renombrar el canal (ej. "Luz Sala"). Se sincroniza automáticamente con Google Home.
+5. Rutinas (Horarios): En el menú lateral -> "Horario". Permite elegir días, horas de inicio/fin y qué canales activar.
+6. Google Home: Compatible con comandos de voz ("Hey Google, enciende..."). Se vincula desde el menú lateral.
+7. Cambio de WiFi: Menú lateral -> "Cambiar WiFi". El dispositivo crea una red temporal para configurar la nueva clave de casa.
+
+ESPECIFICACIONES TÉCNICAS:
+- Hardware: Microcontrolador ESP32, sistema de 8 relés con lógica invertida.
+- Software: App desarrollada en Flutter (compatible con Android e iOS).
+- Nube: Firebase Realtime Database para latencia cero.
+- Diseño visual: Colores Cian (#00FFFF) sobre fondo Negro Profundo (#0D0D0D).
+
+CONTACTO Y REDES:
+- Página Web: https://lumin-oficial.github.io/Web/
+- Facebook: https://www.facebook.com/share/1CBTsjENy6/
+- Instagram: https://www.instagram.com/lumin1_2026?igsh=MWpyeGZmN2treDFqZA==
+
+PROPUESTA DE VALOR: Automatización accesible, control en tiempo real y soporte técnico especializado local en El Salvador.
+`;
+
+const SYSTEM_PROMPT = `
+Eres LUMIN, el asistente virtual experto de la empresa LUMIN. 
+Tu objetivo es ayudar a clientes con dudas técnicas y comerciales.
+Personalidad: Amable, servicial y experto técnico. Usa emojis de forma natural en tus respuestas para que la conversación sea más cercana y amigable.
+
+REGLA CRÍTICA: Si el usuario pregunta algo que NO está en la información proporcionada abajo, 
+responde cortésmente que no tienes esa información específica y que un asesor humano le contactará pronto. No inventes datos.
+
+Usa exclusivamente la siguiente información para responder:
+${CONOCIMIENTO_LUMIN}
+`;
+
+// 2. Configuración del Cliente de WhatsApp
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process', // Ayuda con el uso de memoria en servidores pequeños
+            '--disable-gpu',
+            '--ignore-certificate-errors', // Ignora errores de certificados SSL
+            '--disable-extensions',
+            '--proxy-server="direct://"',
+            '--proxy-bypass-list=*',
+            '--disable-setuid-sandbox',
+            '--no-sandbox'
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null, // Para servidores que requieren una ruta específica
     }
-}
-
-// --- RUTA DE PRUEBA (Para verificar si el servidor responde) ---
-app.get('/', (req, res) => {
-    res.send("🚀 El servidor de LUMIN está activo y esperando mensajes.");
 });
 
-// --- 1. VERIFICACIÓN DEL WEBHOOK ---
-app.get('/webhook', (req, res) => {
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+// Generar el código QR en la consola para vincular el número
+client.on('qr', (qr) => {
+    qrcode.generate(qr, { small: true });
+    console.log('Escanea este QR con tu WhatsApp para iniciar Lummis:');
+});
 
-    if (mode && token === TOKEN_VERIFICACION) {
-        console.log("✅ Webhook verificado correctamente por Meta");
-        res.status(200).send(challenge);
-    } else {
-        res.sendStatus(403);
+client.on('authenticated', (session) => {
+    console.log('¡Sesión autenticada correctamente!');
+    // En LocalAuth no es necesario guardar la sesión manualmente, 
+    // pero este evento confirma que los archivos en .wwebjs_auth son válidos.
+});
+
+client.on('ready', () => {
+    console.log('¡El asistente Lummis está en línea!');
+});
+
+client.on('disconnected', (reason) => {
+    console.log('Lummis se ha desconectado:', reason);
+    console.log('Asegúrate de que el teléfono tenga internet o vuelve a escanear el QR si es necesario.');
+});
+
+// 3. Lógica de Respuesta con IA
+client.on('message', async (msg) => {
+    // Esto imprimirá en tu consola CUALQUIER mensaje que llegue
+    console.log(`Mensaje recibido de ${msg.from}: ${msg.body}`);
+
+    // Evitar que el bot se responda a sí mismo
+    if (msg.fromMe) return;
+
+    // Solo responder a chats individuales y si el mensaje tiene texto
+    if ((msg.from.endsWith('@c.us') || msg.from.endsWith('@lid')) && msg.body) { 
+        try {
+            const chat = await msg.getChat();
+            
+            // Mostrar "Escribiendo..." en WhatsApp
+            await chat.sendStateTyping();
+
+            console.log(`Generando respuesta para ${msg.from}...`);
+            const chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    {
+                        role: "system",
+                        content: SYSTEM_PROMPT
+                    },
+                    {
+                        role: "user",
+                        content: msg.body
+                    }
+                ],
+                model: "llama-3.3-70b-versatile", // Modelo actualizado y potente disponible en Groq
+            });
+            
+            const text = chatCompletion.choices[0]?.message?.content || "";
+            
+            console.log("Respuesta de IA:", text);
+            
+            // Detener el estado de escritura y enviar
+            await chat.clearState();
+            await msg.reply(text);
+        } catch (error) {
+            console.error("Error detallado con Groq:", error);
+            const chat = await msg.getChat();
+            await chat.clearState();
+        } 
     }
 });
 
-// --- 2. RECEPCIÓN DE MENSAJES ---
-app.post('/webhook', async (req, res) => {
-    const body = req.body;
-    
-    // Enviamos el 200 inmediatamente para evitar reintentos de Meta
-    res.sendStatus(200);
-
-    if (body.object) {
-        console.log("📥 Nuevo evento de Meta recibido");
-        
-        if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
-            const message = body.entry[0].changes[0].value.messages[0];
-            const numeroCliente = message.from;
-
-            // Verificamos que sea un mensaje de texto
-            if (message.type === 'text') {
-                const mensajeRecibido = message.text.body.toLowerCase().trim();
-                console.log(`📩 Mensaje recibido de ${numeroCliente}: "${mensajeRecibido}"`);
-
-                // Obtenemos la respuesta dinámica de la IA
-                const textoRespuesta = await obtenerRespuestaIA(mensajeRecibido);
-
-                await enviarMensajeWhatsApp(numeroCliente, textoRespuesta);
-            }
-        } else {
-            // Esto captura notificaciones de lectura/entrega para que veas que el webhook funciona
-            console.log("📝 Notificación de estado (entrega o lectura) recibida.");
-        }
-    }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor de LUMIN listo en puerto ${PORT}`);
+client.initialize().catch(err => {
+    console.error('Error al inicializar el cliente de WhatsApp:', err);
 });
